@@ -1,36 +1,65 @@
+// api/sau.js
 
-/**
- * Serverless function cho API Sau
- * Vercel runtime: Node 18+ (có sẵn fetch)
- *
- * Sử dụng biến môi trường:
- * - API_SAU  : URL nguồn
- * - AUTH_TOKEN : 'Bearer ...token...'
- */
 export default async function handler(req, res) {
-  const apiUrl = process.env.API_SAU;
-  const token = process.env.AUTH_TOKEN;
+  // ==== CORS cho mọi origin ====
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-  if (!apiUrl || !token) {
-    return res.status(500).json({
-      error: "Missing API_SAU or AUTH_TOKEN env vars"
-    });
+  // Trả lời preflight (OPTIONS)
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  // Chỉ cho phép GET
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method Not Allowed" });
+  }
+
+  const { API_SAU, AUTH_TOKEN } = process.env;
+
+  if (!API_SAU) {
+    return res.status(500).json({ error: "API_SAU not configured in env" });
+  }
+
+  if (!AUTH_TOKEN) {
+    return res.status(500).json({ error: "AUTH_TOKEN not configured in env" });
   }
 
   try {
-    const upstreamRes = await fetch(apiUrl, {
+    const response = await fetch(API_SAU, {
       method: "GET",
       headers: {
-        "Authorization": token,
-        "Content-Type": "application/json"
-      }
+        Authorization: AUTH_TOKEN,
+      },
     });
 
-    const data = await upstreamRes.json();
+    const rawText = await response.text();
 
-    return res.status(upstreamRes.status).json(data);
+    if (!response.ok) {
+      return res.status(500).json({
+        error: "Remote API_SAU returned error",
+        status: response.status,
+        body: rawText?.slice(0, 500) || null,
+      });
+    }
+
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (e) {
+      return res.status(500).json({
+        error: "Remote API_SAU returned invalid JSON",
+        message: e.message,
+        bodySample: rawText?.slice(0, 500) || null,
+      });
+    }
+
+    return res.status(200).json(data);
   } catch (err) {
-    console.error("Error calling API_SAU:", err);
-    return res.status(500).json({ error: "Internal error calling API_SAU" });
+    return res.status(500).json({
+      error: "Internal error calling API_SAU",
+      message: err.message,
+    });
   }
 }
