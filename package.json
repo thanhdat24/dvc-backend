@@ -1,0 +1,13 @@
+{
+  "name": "dvc-backend-vercel",
+  "version": "1.0.0",
+  "description": "Simple Vercel serverless backend to proxy Can Tho DVC APIs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No tests\"",
+    "start": "node api/dat.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT"
+}
